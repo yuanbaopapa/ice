@@ -245,6 +245,13 @@ local interface Connection
 
     /**
      *
+     * Send a heartbeat message.
+     *
+     **/
+    ["async-oneway"] void heartbeat();
+
+    /**
+     *
      * Set the active connection management parameters.
      *
      * @param timeout The timeout value in milliseconds.

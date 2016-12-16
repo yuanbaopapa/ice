@@ -193,6 +193,19 @@ public:
     virtual void setCloseCallback(ICE_IN(ICE_CLOSE_CALLBACK));
     virtual void setHeartbeatCallback(ICE_IN(ICE_HEARTBEAT_CALLBACK));
 
+    virtual void heartbeat();
+
+#ifdef ICE_CPP11_MAPPING
+    virtual std::function<void()>
+    heartbeatAsync(::std::function<void(::std::exception_ptr)>, ::std::function<void(bool)> = nullptr);
+#else
+    virtual AsyncResultPtr begin_heartbeat();
+    virtual AsyncResultPtr begin_heartbeat(const CallbackPtr&, const LocalObjectPtr& = 0);
+    virtual AsyncResultPtr begin_heartbeat(const Callback_Connection_heartbeatPtr&, const LocalObjectPtr& = 0);
+
+    virtual void end_heartbeat(const AsyncResultPtr&);
+#endif
+
     virtual void setACM(const IceUtil::Optional<int>&,
                         const IceUtil::Optional<ACMClose>&,
                         const IceUtil::Optional<ACMHeartbeat>&);
@@ -276,7 +289,7 @@ private:
     void setState(State);
 
     void initiateShutdown();
-    void heartbeat();
+    void sendHeartbeatNow();
 
     bool initialize(IceInternal::SocketOperation = IceInternal::SocketOperationNone);
     bool validate(IceInternal::SocketOperation = IceInternal::SocketOperationNone);
@@ -308,6 +321,7 @@ private:
 
 #ifndef ICE_CPP11_MAPPING
     AsyncResultPtr __begin_flushBatchRequests(const IceInternal::CallbackBasePtr&, const LocalObjectPtr&);
+    AsyncResultPtr __begin_heartbeat(const IceInternal::CallbackBasePtr&, const LocalObjectPtr&);
 #endif
 
     Ice::CommunicatorPtr _communicator;

@@ -564,7 +564,7 @@ Ice::ConnectionI::monitor(const IceUtil::Time& now, const ACMConfig& acm)
     {
         if(acm.heartbeat != HeartbeatOnInvocation || _dispatchCount > 0)
         {
-            heartbeat();
+            sendHeartbeatNow();
         }
     }
 
@@ -798,6 +798,174 @@ void
 Ice::ConnectionI::end_flushBatchRequests(const AsyncResultPtr& r)
 {
     AsyncResult::__check(r, this, __flushBatchRequests_name);
+    r->__wait();
+}
+#endif
+
+namespace
+{
+
+const ::std::string __heartbeat_name = "heartbeat";
+
+class HeartbeatAsync : public OutgoingAsyncBase
+{
+public:
+
+    HeartbeatAsync(const ConnectionIPtr& connection,
+                   const CommunicatorPtr& communicator,
+                   const InstancePtr& instance) :
+        OutgoingAsyncBase(instance),
+        _communicator(communicator),
+        _connection(connection)
+    {
+    }
+
+    virtual CommunicatorPtr getCommunicator() const
+    {
+        return _communicator;
+    }
+
+    virtual ConnectionPtr getConnection() const
+    {
+        return _connection;
+    }
+
+    virtual const string& getOperation() const
+    {
+        return __heartbeat_name;
+    }
+
+    void invoke()
+    {
+        _observer.attach(_instance.get(), __heartbeat_name);
+        try
+        {
+            _os.write(magic[0]);
+            _os.write(magic[1]);
+            _os.write(magic[2]);
+            _os.write(magic[3]);
+            _os.write(currentProtocol);
+            _os.write(currentProtocolEncoding);
+            _os.write(validateConnectionMsg);
+            _os.write(static_cast<Byte>(0)); // Compression status (always zero for validate connection).
+            _os.write(headerSize); // Message size.
+            _os.i = _os.b.begin();
+
+            AsyncStatus status = _connection->sendAsyncRequest(ICE_SHARED_FROM_THIS, false, false, 0);
+            if(status & AsyncStatusSent)
+            {
+                _sentSynchronously = true;
+                if(status & AsyncStatusInvokeSentCallback)
+                {
+                    invokeSent();
+                }
+            }
+        }
+        catch(const RetryException& ex)
+        {
+            if(exception(*ex.get()))
+            {
+                invokeExceptionAsync();
+            }
+        }
+        catch(const Exception& ex)
+        {
+            if(exception(ex))
+            {
+                invokeExceptionAsync();
+            }
+        }
+    }
+
+private:
+
+    CommunicatorPtr _communicator;
+    ConnectionIPtr _connection;
+};
+typedef IceUtil::Handle<HeartbeatAsync> HeartbeatAsyncPtr;
+
+}
+
+#ifdef ICE_CPP11_MAPPING
+void
+Ice::ConnectionI::heartbeat()
+{
+    Connection::heartbeatAsync().get();
+}
+
+std::function<void()>
+Ice::ConnectionI::heartbeatAsync(::std::function<void(::std::exception_ptr)> ex, ::std::function<void(bool)> sent)
+{
+    class HeartbeatLambda : public HeartbeatAsync, public LambdaInvoke
+    {
+    public:
+
+        HeartbeatLambda(std::shared_ptr<Ice::ConnectionI>&& connection,
+                        std::shared_ptr<Ice::Communicator>& communicator,
+                        const InstancePtr& instance,
+                        std::function<void(std::exception_ptr)> ex,
+                        std::function<void(bool)> sent) :
+            HeartbeatAsync(connection, communicator, instance), LambdaInvoke(std::move(ex), std::move(sent))
+        {
+        }
+    };
+    auto outAsync = make_shared<HeartbeatLambda>(ICE_SHARED_FROM_THIS, _communicator, _instance, ex, sent);
+    outAsync->invoke();
+    return [outAsync]() { outAsync->cancel(); };
+}
+#else
+void
+Ice::ConnectionI::heartbeat()
+{
+    end_heartbeat(begin_heartbeat());
+}
+
+AsyncResultPtr
+Ice::ConnectionI::begin_heartbeat()
+{
+    return __begin_heartbeat(__dummyCallback, 0);
+}
+
+AsyncResultPtr
+Ice::ConnectionI::begin_heartbeat(const CallbackPtr& cb, const LocalObjectPtr& cookie)
+{
+    return __begin_heartbeat(cb, cookie);
+}
+
+AsyncResultPtr
+Ice::ConnectionI::begin_heartbeat(const Callback_Connection_heartbeatPtr& cb, const LocalObjectPtr& cookie)
+{
+    return __begin_heartbeat(cb, cookie);
+}
+
+AsyncResultPtr
+Ice::ConnectionI::__begin_heartbeat(const CallbackBasePtr& cb, const LocalObjectPtr& cookie)
+{
+    class HeartbeatCallback : public HeartbeatAsync, public CallbackCompletion
+    {
+    public:
+
+        HeartbeatCallback(const ConnectionIPtr& connection,
+                          const CommunicatorPtr& communicator,
+                          const InstancePtr& instance,
+                          const CallbackBasePtr& callback,
+                          const LocalObjectPtr& cookie) :
+            HeartbeatAsync(connection, communicator, instance),
+            CallbackCompletion(callback, cookie)
+        {
+            _cookie = cookie;
+        }
+    };
+
+    HeartbeatAsyncPtr result = new HeartbeatCallback(this, _communicator, _instance, cb, cookie);
+    result->invoke();
+    return result;
+}
+
+void
+Ice::ConnectionI::end_heartbeat(const AsyncResultPtr& r)
+{
+    AsyncResult::__check(r, this, __heartbeat_name);
     r->__wait();
 }
 #endif
@@ -2329,7 +2497,7 @@ Ice::ConnectionI::initiateShutdown()
 }
 
 void
-Ice::ConnectionI::heartbeat()
+Ice::ConnectionI::sendHeartbeatNow()
 {
     assert(_state == StateActive);
 
