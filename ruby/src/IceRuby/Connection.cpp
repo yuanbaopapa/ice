@@ -76,6 +76,21 @@ IceRuby_Connection_flushBatchRequests(VALUE self)
 
 extern "C"
 VALUE
+IceRuby_Connection_heartbeat(VALUE self)
+{
+    ICE_RUBY_TRY
+    {
+        Ice::ConnectionPtr* p = reinterpret_cast<Ice::ConnectionPtr*>(DATA_PTR(self));
+        assert(p);
+
+        (*p)->heartbeat();
+    }
+    ICE_RUBY_CATCH
+    return Qnil;
+}
+
+extern "C"
+VALUE
 IceRuby_Connection_setACM(VALUE self, VALUE t, VALUE c, VALUE h)
 {
     ICE_RUBY_TRY
@@ -377,6 +392,7 @@ IceRuby::initConnection(VALUE iceModule)
     //
     rb_define_method(_connectionClass, "close", CAST_METHOD(IceRuby_Connection_close), 1);
     rb_define_method(_connectionClass, "flushBatchRequests", CAST_METHOD(IceRuby_Connection_flushBatchRequests), 0);
+    rb_define_method(_connectionClass, "heartbeat", CAST_METHOD(IceRuby_Connection_heartbeat), 0);
     rb_define_method(_connectionClass, "setACM", CAST_METHOD(IceRuby_Connection_setACM), 3);
     rb_define_method(_connectionClass, "getACM", CAST_METHOD(IceRuby_Connection_getACM), 0);
     rb_define_method(_connectionClass, "type", CAST_METHOD(IceRuby_Connection_type), 0);

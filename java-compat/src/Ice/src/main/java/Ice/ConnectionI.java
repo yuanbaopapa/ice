@@ -518,6 +518,155 @@ public final class ConnectionI extends IceInternal.EventHandler
     }
 
     @Override
+    public void heartbeat()
+    {
+        end_heartbeat(begin_heartbeat());
+    }
+
+    private static final String __heartbeat_name = "heartbeat";
+
+    @Override
+    public AsyncResult begin_heartbeat()
+    {
+        return begin_heartbeatInternal(null);
+    }
+
+    @Override
+    public AsyncResult begin_heartbeat(Callback cb)
+    {
+        return begin_heartbeatInternal(cb);
+    }
+
+    @Override
+    public AsyncResult begin_heartbeat(Callback_Connection_heartbeat cb)
+    {
+        return begin_heartbeatInternal(cb);
+    }
+
+    @Override
+    public AsyncResult begin_heartbeat(IceInternal.Functional_VoidCallback __responseCb,
+                                       IceInternal.Functional_GenericCallback1<Ice.Exception> __exceptionCb,
+                                       IceInternal.Functional_BoolCallback __sentCb)
+    {
+        return begin_heartbeatInternal(new IceInternal.Functional_CallbackBase(false, __exceptionCb, __sentCb)
+        {
+            @Override
+            public final void __completed(AsyncResult __result)
+            {
+                try
+                {
+                    __result.getConnection().end_heartbeat(__result);
+                }
+                catch(Exception __ex)
+                {
+                    __exceptionCb.apply(__ex);
+                }
+            }
+        });
+    }
+
+    static class HeartbeatAsync extends IceInternal.OutgoingAsyncBase
+    {
+        public static HeartbeatAsync check(AsyncResult r, Connection con, String operation)
+        {
+            check(r, operation);
+            if(!(r instanceof HeartbeatAsync))
+            {
+                throw new IllegalArgumentException("Incorrect AsyncResult object for end_" + operation + " method");
+            }
+            if(r.getConnection() != con)
+            {
+                throw new IllegalArgumentException("Connection for call to end_" + operation +
+                                                   " does not match connection that was used to call corresponding " +
+                                                   "begin_" + operation + " method");
+            }
+            return (HeartbeatAsync)r;
+        }
+
+        public HeartbeatAsync(ConnectionI con, Communicator communicator, IceInternal.Instance instance,
+                              String operation, IceInternal.CallbackBase callback)
+        {
+            super(communicator, instance, operation, callback);
+            _connection = con;
+        }
+
+        @Override
+        public Connection getConnection()
+        {
+            return _connection;
+        }
+
+        public void invoke()
+        {
+            try
+            {
+                _os.writeBlob(IceInternal.Protocol.magic);
+                IceInternal.Protocol.currentProtocol.__write(_os);
+                IceInternal.Protocol.currentProtocolEncoding.__write(_os);
+                _os.writeByte(IceInternal.Protocol.validateConnectionMsg);
+                _os.writeByte((byte) 0);
+                _os.writeInt(IceInternal.Protocol.headerSize); // Message size.
+
+                int status;
+                if(_instance.queueRequests())
+                {
+                    status = _instance.getQueueExecutor().execute(new Callable<Integer>()
+                    {
+                        @Override
+                        public Integer call() throws IceInternal.RetryException
+                        {
+                            return _connection.sendAsyncRequest(HeartbeatAsync.this, false, false, 0);
+                        }
+                    });
+                }
+                else
+                {
+                    status = _connection.sendAsyncRequest(this, false, false, 0);
+                }
+
+                if((status & IceInternal.AsyncStatus.Sent) > 0)
+                {
+                    _sentSynchronously = true;
+                    if((status & IceInternal.AsyncStatus.InvokeSentCallback) > 0)
+                    {
+                        invokeSent();
+                    }
+                }
+            }
+            catch(IceInternal.RetryException ex)
+            {
+                if(completed(ex.get()))
+                {
+                    invokeCompletedAsync();
+                }
+            }
+            catch(Ice.Exception ex)
+            {
+                if(completed(ex))
+                {
+                    invokeCompletedAsync();
+                }
+            }
+        }
+
+        private Ice.ConnectionI _connection;
+    }
+
+    private AsyncResult begin_heartbeatInternal(IceInternal.CallbackBase cb)
+    {
+        HeartbeatAsync result = new HeartbeatAsync(this, _communicator, _instance, __heartbeat_name, cb);
+        result.invoke();
+        return result;
+    }
+
+    @Override
+    public void end_heartbeat(AsyncResult ir)
+    {
+        HeartbeatAsync r = HeartbeatAsync.check(ir, this, __heartbeat_name);
+        r.__wait();
+    }
+
+    @Override
     synchronized public void setACM(Ice.IntOptional timeout, Ice.Optional<ACMClose> close,
             Ice.Optional<ACMHeartbeat> heartbeat)
     {
@@ -1910,7 +2059,7 @@ public final class ConnectionI extends IceInternal.EventHandler
         }
     }
 
-    private void heartbeat()
+    private void sendHeartbeatNow()
     {
         assert (_state == StateActive);
 

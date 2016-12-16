@@ -304,7 +304,7 @@ public final class ConnectionI extends com.zeroc.IceInternal.EventHandler
         {
             if(acm.heartbeat != ACMHeartbeat.HeartbeatOnInvocation || _dispatchCount > 0)
             {
-                heartbeat();
+                sendHeartbeatNow();
             }
         }
 
@@ -477,6 +477,107 @@ public final class ConnectionI extends com.zeroc.IceInternal.EventHandler
     synchronized public void setHeartbeatCallback(final HeartbeatCallback callback)
     {
         _heartbeatCallback = callback;
+    }
+
+    @Override
+    public void heartbeat()
+    {
+        ObjectPrx.__waitForCompletion(heartbeatAsync());
+    }
+
+    private class HeartbeatAsync extends com.zeroc.IceInternal.OutgoingAsyncBaseI<Void>
+    {
+        public HeartbeatAsync(Communicator communicator, com.zeroc.IceInternal.Instance instance)
+        {
+            super(communicator, instance, "heartbeat");
+        }
+
+        @Override
+        public Connection getConnection()
+        {
+            return ConnectionI.this;
+        }
+
+        @Override
+        protected void __sent()
+        {
+            super.__sent();
+
+            assert((_state & StateOK) != 0);
+            complete(null);
+        }
+
+        @Override
+        protected void __completed()
+        {
+            if(_exception != null)
+            {
+                completeExceptionally(_exception);
+            }
+            super.__completed();
+        }
+
+        public void invoke()
+        {
+            try
+            {
+                _os.writeBlob(Protocol.magic);
+                Protocol.currentProtocol.ice_write(_os);
+                Protocol.currentProtocolEncoding.ice_write(_os);
+                _os.writeByte(Protocol.validateConnectionMsg);
+                _os.writeByte((byte) 0);
+                _os.writeInt(Protocol.headerSize); // Message size.
+
+                int status;
+                if(_instance.queueRequests())
+                {
+                    status = _instance.getQueueExecutor().execute(new Callable<Integer>()
+                    {
+                        @Override
+                        public Integer call()
+                            throws com.zeroc.IceInternal.RetryException
+                        {
+                            return ConnectionI.this.sendAsyncRequest(HeartbeatAsync.this, false, false, 0);
+                        }
+                    });
+                }
+                else
+                {
+                    status = ConnectionI.this.sendAsyncRequest(this, false, false, 0);
+                }
+
+                if((status & AsyncStatus.Sent) > 0)
+                {
+                    _sentSynchronously = true;
+                    if((status & AsyncStatus.InvokeSentCallback) > 0)
+                    {
+                        invokeSent();
+                    }
+                }
+            }
+            catch(com.zeroc.IceInternal.RetryException ex)
+            {
+                if(completed(ex.get()))
+                {
+                    invokeCompletedAsync();
+                }
+            }
+            catch(com.zeroc.Ice.Exception ex)
+            {
+                if(completed(ex))
+                {
+                    invokeCompletedAsync();
+                }
+            }
+        }
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> heartbeatAsync()
+    {
+        HeartbeatAsync __f = new HeartbeatAsync(_communicator, _instance);
+        __f.invoke();
+        return __f;
     }
 
     @Override
@@ -1874,7 +1975,7 @@ public final class ConnectionI extends com.zeroc.IceInternal.EventHandler
         }
     }
 
-    private void heartbeat()
+    private void sendHeartbeatNow()
     {
         assert (_state == StateActive);
 
