@@ -345,7 +345,7 @@ namespace Ice
                 {
                     if(acm.heartbeat != ACMHeartbeat.HeartbeatOnInvocation || _dispatchCount > 0)
                     {
-                        heartbeat();
+                        sendHeartbeatNow();
                     }
                 }
 
@@ -581,6 +581,149 @@ namespace Ice
             {
                 _heartbeatCallback = callback;
             }
+        }
+
+        public void heartbeat()
+        {
+            heartbeatAsync().Wait();
+        }
+
+        private class HeartbeatCompletionCallback : AsyncResultCompletionCallback
+        {
+            public HeartbeatCompletionCallback(Ice.Connection connection,
+                                               Ice.Communicator communicator,
+                                               Instance instance,
+                                               object cookie,
+                                               Ice.AsyncCallback callback)
+                : base(communicator, instance, "heartbeat", cookie, callback)
+            {
+                _connection = connection;
+            }
+
+            public override Ice.Connection getConnection()
+            {
+                return _connection;
+            }
+
+            protected override Ice.AsyncCallback getCompletedCallback()
+            {
+                return (Ice.AsyncResult result) =>
+                {
+                    try
+                    {
+                        result.throwLocalException();
+                    }
+                    catch(Ice.Exception ex)
+                    {
+                        if(exceptionCallback_ != null)
+                        {
+                            exceptionCallback_.Invoke(ex);
+                        }
+                    }
+                };
+            }
+
+            private Ice.Connection _connection;
+        }
+
+        private class HeartbeatTaskCompletionCallback : TaskCompletionCallback<object>
+        {
+            public HeartbeatTaskCompletionCallback(System.IProgress<bool> progress,
+                                                   CancellationToken cancellationToken) :
+                base(progress, cancellationToken)
+            {
+            }
+
+            public override bool handleResponse(bool ok, OutgoingAsyncBase og)
+            {
+                SetResult(null);
+                return false;
+            }
+        }
+
+        private class HeartbeatAsync : OutgoingAsyncBase
+        {
+            public HeartbeatAsync(Ice.ConnectionI connection,
+                                  Instance instance,
+                                  OutgoingAsyncCompletionCallback completionCallback) :
+                base(instance, completionCallback)
+            {
+                _connection = connection;
+            }
+
+            public void invoke()
+            {
+                try
+                {
+                    os_.writeBlob(IceInternal.Protocol.magic);
+                    Ice.Util.currentProtocol.write__(os_);
+                    Ice.Util.currentProtocolEncoding.write__(os_);
+                    os_.writeByte(IceInternal.Protocol.validateConnectionMsg);
+                    os_.writeByte((byte)0);
+                    os_.writeInt(IceInternal.Protocol.headerSize); // Message size.
+
+                    int status = _connection.sendAsyncRequest(this, false, false, 0);
+
+                    if((status & AsyncStatusSent) != 0)
+                    {
+                        sentSynchronously_ = true;
+                        if((status & AsyncStatusInvokeSentCallback) != 0)
+                        {
+                            invokeSent();
+                        }
+                    }
+                }
+                catch(RetryException ex)
+                {
+                    try
+                    {
+                        throw ex.get();
+                    }
+                    catch(Ice.LocalException ee)
+                    {
+                        if(exception(ee))
+                        {
+                            invokeExceptionAsync();
+                        }
+                    }
+                }
+                catch(Ice.Exception ex)
+                {
+                    if(exception(ex))
+                    {
+                        invokeExceptionAsync();
+                    }
+                }
+            }
+
+            private readonly Ice.ConnectionI _connection;
+        }
+
+        public Task heartbeatAsync(IProgress<bool> progress = null, CancellationToken cancel = new CancellationToken())
+        {
+            var completed = new HeartbeatTaskCompletionCallback(progress, cancel);
+            var outgoing = new HeartbeatAsync(this, _instance, completed);
+            outgoing.invoke();
+            return completed.Task;
+        }
+
+        public AsyncResult begin_heartbeat(AsyncCallback cb = null, object cookie = null)
+        {
+            var result = new HeartbeatCompletionCallback(this, _communicator, _instance, cookie, cb);
+            var outgoing = new HeartbeatAsync(this, _instance, result);
+            outgoing.invoke();
+            return result;
+        }
+
+        public void end_heartbeat(AsyncResult r)
+        {
+            if(r != null && r.getConnection() != this)
+            {
+                const string msg = "Connection for call to end_heartbeat does not match connection that was used " +
+                    "to call corresponding begin_heartbeat method";
+                throw new ArgumentException(msg);
+            }
+            AsyncResultI.check(r, "heartbeat").wait();
         }
 
         public void setACM(Optional<int> timeout, Optional<ACMClose> close, Optional<ACMHeartbeat> heartbeat)
@@ -1973,7 +2116,7 @@ namespace Ice
             }
         }
 
-        private void heartbeat()
+        private void sendHeartbeatNow()
         {
             Debug.Assert(_state == StateActive);
 
