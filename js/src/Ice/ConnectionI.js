@@ -35,6 +35,7 @@ const InputStream = Ice.InputStream;
 const OutputStream = Ice.OutputStream;
 const BatchRequestQueue = Ice.BatchRequestQueue;
 const ConnectionFlushBatch = Ice.ConnectionFlushBatch;
+const HeartbeatAsync = Ice.HeartbeatAsync;
 const Debug = Ice.Debug;
 const ExUtil = Ice.ExUtil;
 const HashMap = Ice.HashMap;
@@ -325,7 +326,7 @@ class ConnectionI
         {
             if(acm.heartbeat != Ice.ACMHeartbeat.HeartbeatOnInvocation || this._dispatchCount > 0)
             {
-                this.heartbeat(); // Send heartbeat if idle in the last timeout / 2 period.
+                this.sendHeartbeatNow(); // Send heartbeat if idle in the last timeout / 2 period.
             }
         }
 
@@ -486,6 +487,13 @@ class ConnectionI
     setHeartbeatCallback(callback)
     {
         this._heartbeatCallback = callback;
+    }
+
+    heartbeat()
+    {
+        const result = new HeartbeatAsync(this, this._communicator);
+        result.__invoke();
+        return result;
     }
 
     setACM(timeout, close, heartbeat)
@@ -1454,7 +1462,7 @@ class ConnectionI
         }
     }
 
-    heartbeat()
+    sendHeartbeatNow()
     {
         Debug.assert(this._state === StateActive);
 

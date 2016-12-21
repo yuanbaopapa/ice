@@ -9,6 +9,21 @@
 
 import Ice, Test, threading
 
+class ConnectionCallbackI():
+    def __init__(self):
+        self.m = threading.Condition()
+        self.count = 0
+
+    def heartbeat(self, con):
+        with self.m:
+            self.count += 1
+            self.m.notifyAll()
+
+    def waitForCount(self, count):
+        with self.m:
+            while self.count < count:
+                self.m.wait()
+
 class RemoteCommunicatorI(Test.RemoteCommunicator):
     def createObjectAdapter(self, timeout, close, heartbeat, current=None):
         com = current.adapter.getCommunicator()
@@ -56,53 +71,21 @@ class TestIntfI(Test.TestIntf):
         self.m = threading.Condition()
 
     def sleep(self, delay, current=None):
-        self.m.acquire()
-        try:
+        with self.m:
             self.m.wait(delay)
-        finally:
-            self.m.release()
 
     def sleepAndHold(self, delay, current=None):
-        self.m.acquire()
-        try:
+        with self.m:
             current.adapter.hold()
             self.m.wait(delay)
-        finally:
-            self.m.release()
 
     def interruptSleep(self, delay, current=None):
-        self.m.acquire()
-        try:
+        with self.m:
             self.m.notifyAll()
-        finally:
-            self.m.release()
 
-    def waitForHeartbeat(self, count, current=None):
+    def startHeartbeatCount(self, current=None):
+        self.callback = ConnectionCallbackI()
+        current.con.setHeartbeatCallback(lambda con: self.callback.heartbeat(con))
 
-        class ConnectionCallbackI():
-
-            def __init__(self):
-                self.m = threading.Condition()
-                self.count = 0
-
-            def heartbeat(self, con):
-                self.m.acquire()
-                try:
-                    self.count -= 1
-                    self.m.notifyAll()
-                finally:
-                    self.m.release()
-
-            def waitForCount(self, count):
-                self.m.acquire()
-                self.count = count
-                try:
-                    while self.count > 0:
-                        self.m.wait()
-                finally:
-                    self.m.release()
-
-        callback = ConnectionCallbackI()
-        current.con.setHeartbeatCallback(lambda con: callback.heartbeat(con))
-        callback.waitForCount(2)
-
+    def waitForHeartbeatCount(self, count, current=None):
+        self.callback.waitForCount(2)
