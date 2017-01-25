@@ -380,7 +380,7 @@ public class AllTests
             {
                 final Thread mainThread = Thread.currentThread();
     
-                p.ice_getConnection().close(false);
+                p.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
     
                 AsyncResult r = p.begin_ice_getConnection();
                 mainThread.interrupt();
@@ -394,7 +394,7 @@ public class AllTests
                     // Expected
                 }
                 
-                p.ice_getConnection().close(false);
+                p.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 
                 final CallbackBase cb = new CallbackBase();
                 mainThread.interrupt();

@@ -309,7 +309,7 @@ public class AllTests
         {
             if(proxy.ice_getCachedConnection() != null)
             {
-                proxy.ice_getCachedConnection().close(false);
+                proxy.ice_getCachedConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             }
 
             try
@@ -322,7 +322,7 @@ public class AllTests
 
             if(proxy.ice_getCachedConnection() != null)
             {
-                proxy.ice_getCachedConnection().close(false);
+                proxy.ice_getCachedConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             }
         }
 
@@ -533,8 +533,8 @@ public class AllTests
 
         if(!collocated)
         {
-            metrics.ice_getConnection().close(false);
-            metrics.ice_connectionId("Con1").ice_getConnection().close(false);
+            metrics.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+            metrics.ice_connectionId("Con1").ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
             waitForCurrent(clientMetrics, "View", "Connection", 0);
             waitForCurrent(serverMetrics, "View", "Connection", 0);
@@ -639,7 +639,7 @@ public class AllTests
             map = toMap(serverMetrics.getMetricsView("View", timestamp).get("Connection"));
             test(map.get("holding").current == 1);
 
-            metrics.ice_getConnection().close(false);
+            metrics.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
             map = toMap(clientMetrics.getMetricsView("View", timestamp).get("Connection"));
             test(map.get("closing").current == 1);
@@ -654,7 +654,7 @@ public class AllTests
             props.put("IceMX.Metrics.View.Map.Connection.GroupBy", "none");
             updateProps(clientProps, serverProps, update, props, "Connection");
 
-            metrics.ice_getConnection().close(false);
+            metrics.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
             metrics.ice_timeout(500).ice_ping();
             controller.hold();
@@ -716,7 +716,7 @@ public class AllTests
             testAttribute(clientMetrics, clientProps, update, "Connection", "mcastHost", "", out);
             testAttribute(clientMetrics, clientProps, update, "Connection", "mcastPort", "", out);
 
-            m.ice_getConnection().close(false);
+            m.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
             waitForCurrent(clientMetrics, "View", "Connection", 0);
             waitForCurrent(serverMetrics, "View", "Connection", 0);
@@ -736,7 +736,7 @@ public class AllTests
             IceMX.Metrics m1 = clientMetrics.getMetricsView("View", timestamp).get("ConnectionEstablishment")[0];
             test(m1.current == 0 && m1.total == 1 && m1.id.equals("127.0.0.1:12010"));
 
-            metrics.ice_getConnection().close(false);
+            metrics.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             controller.hold();
             try
             {
@@ -795,7 +795,7 @@ public class AllTests
             m1 = clientMetrics.getMetricsView("View", timestamp).get("EndpointLookup")[0];
             test(m1.current <= 1 && m1.total == 1 && m1.id.equals(prx.ice_getConnection().getEndpoint().toString()));
 
-            prx.ice_getConnection().close(false);
+            prx.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
             boolean dnsException = false;
             try

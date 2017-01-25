@@ -293,7 +293,7 @@ public class AllTests
             configuration.buffered(true);
             backgroundController.buffered(true);
             background.opAsync();
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
             background.opAsync();
 
             java.util.List<CompletableFuture<Void>> results = new java.util.ArrayList<>();
@@ -332,7 +332,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         for(int i = 0; i < 4; ++i)
         {
@@ -394,7 +394,7 @@ public class AllTests
             }
 
             configuration.connectException(new com.zeroc.Ice.SocketException());
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
             try
             {
                 Thread.sleep(10);
@@ -437,7 +437,7 @@ public class AllTests
             ex.printStackTrace();
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         for(int i = 0; i < 4; i++)
         {
@@ -496,7 +496,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -508,7 +508,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -552,7 +552,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -587,7 +587,7 @@ public class AllTests
             }
 
             configuration.initializeException(new com.zeroc.Ice.SocketException());
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
             try
             {
                 Thread.sleep(10);
@@ -613,7 +613,7 @@ public class AllTests
             }
 
             configuration.initializeSocketStatus(com.zeroc.IceInternal.SocketOperation.Write);
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
 
             try
             {
@@ -628,7 +628,7 @@ public class AllTests
             configuration.initializeSocketStatus(com.zeroc.IceInternal.SocketOperation.None);
 
             ctl.initializeException(true);
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
             try
             {
                 Thread.sleep(10);
@@ -656,7 +656,7 @@ public class AllTests
             try
             {
                 ctl.initializeSocketStatus(com.zeroc.IceInternal.SocketOperation.Write);
-                background.ice_getCachedConnection().close(true);
+                background.ice_getCachedConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
                 background.op();
                 ctl.initializeSocketStatus(com.zeroc.IceInternal.SocketOperation.None);
             }
@@ -691,7 +691,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -739,7 +739,7 @@ public class AllTests
                 ex.printStackTrace();
                 test(false);
             }
-            background.ice_getConnection().close(false);
+            background.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
             try
             {
@@ -813,7 +813,7 @@ public class AllTests
             ex.printStackTrace();
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -843,7 +843,7 @@ public class AllTests
         backgroundBatchOneway.op();
         ctl.resumeAdapter();
         backgroundBatchOneway.ice_flushBatchRequests();
-        backgroundBatchOneway.ice_getConnection().close(false);
+        backgroundBatchOneway.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         //
         // Send bigger requests to test with auto-flushing.
@@ -855,7 +855,7 @@ public class AllTests
         backgroundBatchOneway.opWithPayload(seq);
         ctl.resumeAdapter();
         backgroundBatchOneway.ice_flushBatchRequests();
-        backgroundBatchOneway.ice_getConnection().close(false);
+        backgroundBatchOneway.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         //
         // Then try the same thing with async flush.
@@ -867,7 +867,7 @@ public class AllTests
         backgroundBatchOneway.op();
         ctl.resumeAdapter();
         backgroundBatchOneway.ice_flushBatchRequestsAsync();
-        backgroundBatchOneway.ice_getConnection().close(false);
+        backgroundBatchOneway.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
 
         ctl.holdAdapter();
         backgroundBatchOneway.opWithPayload(seq);
@@ -877,7 +877,7 @@ public class AllTests
         ctl.resumeAdapter();
         r = backgroundBatchOneway.ice_flushBatchRequestsAsync();
         r.join();
-        backgroundBatchOneway.ice_getConnection().close(false);
+        backgroundBatchOneway.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
     }
 
     private static void readWriteTests(Configuration configuration, BackgroundPrx background,
@@ -1272,7 +1272,7 @@ public class AllTests
             }
 
             background.ice_ping();
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
             try
             {
                 Thread.sleep(10);
@@ -1281,7 +1281,7 @@ public class AllTests
             {
             }
 
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
         }
 
         thread1._destroy();

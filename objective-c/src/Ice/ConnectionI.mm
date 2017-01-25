@@ -262,12 +262,12 @@ private:
 }
 
 @implementation ICEConnection
--(void) close:(BOOL)force
+-(void) close:(ICEConnectionClose)mode
 {
     NSException* nsex = nil;
     try
     {
-        CONNECTION->close(force);
+        CONNECTION->close((Ice::ConnectionClose)mode);
     }
     catch(const std::exception& ex)
     {

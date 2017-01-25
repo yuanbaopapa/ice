@@ -46,14 +46,23 @@ IceRuby::createConnection(const Ice::ConnectionPtr& p)
 
 extern "C"
 VALUE
-IceRuby_Connection_close(VALUE self, VALUE b)
+IceRuby_Connection_close(VALUE self, VALUE mode)
 {
     ICE_RUBY_TRY
     {
         Ice::ConnectionPtr* p = reinterpret_cast<Ice::ConnectionPtr*>(DATA_PTR(self));
         assert(p);
 
-        (*p)->close(RTEST(b));
+        volatile VALUE type = callRuby(rb_path2class, "Ice::ConnectionClose");
+        if(callRuby(rb_obj_is_instance_of, mode, type) != Qtrue)
+        {
+            throw RubyException(rb_eTypeError,
+                "value for 'mode' argument must be an enumerator of Ice.ConnectionClose");
+        }
+        volatile VALUE modeValue = callRuby(rb_funcall, mode, rb_intern("to_i"), 0);
+        assert(TYPE(modeValue) == T_FIXNUM);
+        Ice::ConnectionClose cc = static_cast<Ice::ConnectionClose>(FIX2LONG(modeValue));
+        (*p)->close(cc);
     }
     ICE_RUBY_CATCH
     return Qnil;

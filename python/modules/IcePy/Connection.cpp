@@ -297,17 +297,22 @@ extern "C"
 static PyObject*
 connectionClose(ConnectionObject* self, PyObject* args)
 {
-    int force;
-    if(!PyArg_ParseTuple(args, STRCAST("i"), &force))
+    PyObject* closeType = lookupType("Ice.ConnectionClose");
+    PyObject* mode;
+    if(!PyArg_ParseTuple(args, STRCAST("O!"), closeType, &mode))
     {
         return 0;
     }
+
+    PyObjectHandle v = PyObject_GetAttrString(mode, STRCAST("_value"));
+    assert(v.get());
+    Ice::ConnectionClose cc = static_cast<Ice::ConnectionClose>(PyLong_AsLong(v.get()));
 
     assert(self->connection);
     try
     {
         AllowThreads allowThreads; // Release Python's global interpreter lock during blocking invocations.
-        (*self->connection)->close(force > 0);
+        (*self->connection)->close(cc);
     }
     catch(const Ice::Exception& ex)
     {

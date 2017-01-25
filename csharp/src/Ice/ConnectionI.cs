@@ -181,29 +181,31 @@ namespace Ice
             }
         }
 
-        public void close(bool force)
+        public void close(ConnectionClose mode)
         {
             lock(this)
             {
-                if(force)
+                if(mode == ConnectionClose.CloseForcefully)
                 {
-                    setState(StateClosed, new ForcedCloseConnectionException());
+                    setState(StateClosed, new ConnectionManuallyClosedException(false));
+                }
+                else if(mode == ConnectionClose.CloseGracefully)
+                {
+                    setState(StateClosing, new ConnectionManuallyClosedException(true));
                 }
                 else
                 {
+                    Debug.Assert(mode == ConnectionClose.CloseGracefullyAndWait);
+
                     //
-                    // If we do a graceful shutdown, then we wait until all
-                    // outstanding requests have been completed. Otherwise,
-                    // the CloseConnectionException will cause all outstanding
-                    // requests to be retried, regardless of whether the
-                    // server has processed them or not.
+                    // Wait until all outstanding requests have been completed.
                     //
                     while(_asyncRequests.Count != 0)
                     {
                         System.Threading.Monitor.Wait(this);
                     }
 
-                    setState(StateClosing, new CloseConnectionException());
+                    setState(StateClosing, new ConnectionManuallyClosedException(true));
                 }
             }
         }
@@ -330,13 +332,13 @@ namespace Ice
                 // We send a heartbeat if there was no activity in the last
                 // (timeout / 4) period. Sending a heartbeat sooner than
                 // really needed is safer to ensure that the receiver will
-                // receive in time the heartbeat. Sending the heartbeat if
+                // receive the heartbeat in time. Sending the heartbeat if
                 // there was no activity in the last (timeout / 2) period
                 // isn't enough since monitor() is called only every (timeout
                 // / 2) period.
                 //
                 // Note that this doesn't imply that we are sending 4 heartbeats
-                // per timeout period because the monitor() method is sill only
+                // per timeout period because the monitor() method is still only
                 // called every (timeout / 2) period.
                 //
                 if(acm.heartbeat == ACMHeartbeat.HeartbeatAlways ||
@@ -1559,7 +1561,7 @@ namespace Ice
                     // Trace the cause of unexpected connection closures
                     //
                     if(!(_exception is CloseConnectionException ||
-                         _exception is ForcedCloseConnectionException ||
+                         _exception is ConnectionManuallyClosedException ||
                          _exception is ConnectionTimeoutException ||
                          _exception is CommunicatorDestroyedException ||
                          _exception is ObjectAdapterDeactivatedException))
@@ -1868,7 +1870,7 @@ namespace Ice
                     // Don't warn about certain expected exceptions.
                     //
                     if(!(_exception is CloseConnectionException ||
-                         _exception is ForcedCloseConnectionException ||
+                         _exception is ConnectionManuallyClosedException ||
                          _exception is ConnectionTimeoutException ||
                          _exception is CommunicatorDestroyedException ||
                          _exception is ObjectAdapterDeactivatedException ||
@@ -2047,7 +2049,7 @@ namespace Ice
                 if(_observer != null && state == StateClosed && _exception != null)
                 {
                     if(!(_exception is CloseConnectionException ||
-                         _exception is ForcedCloseConnectionException ||
+                         _exception is ConnectionManuallyClosedException ||
                          _exception is ConnectionTimeoutException ||
                          _exception is CommunicatorDestroyedException ||
                          _exception is ObjectAdapterDeactivatedException ||
@@ -2076,8 +2078,7 @@ namespace Ice
 
         private void initiateShutdown()
         {
-            Debug.Assert(_state == StateClosing);
-            Debug.Assert(_dispatchCount == 0);
+            Debug.Assert(_state == StateClosing && _dispatchCount == 0);
 
             if(_shutdownInitiated)
             {
@@ -2104,7 +2105,7 @@ namespace Ice
                     setState(StateClosingPending);
 
                     //
-                    // Notify the the transceiver of the graceful connection closure.
+                    // Notify the transceiver of the graceful connection closure.
                     //
                     int op = _transceiver.closing(true, _exception);
                     if(op != 0)
@@ -2604,7 +2605,7 @@ namespace Ice
                             setState(StateClosingPending, new CloseConnectionException());
 
                             //
-                            // Notify the the transceiver of the graceful connection closure.
+                            // Notify the transceiver of the graceful connection closure.
                             //
                             int op = _transceiver.closing(false, _exception);
                             if(op != 0)

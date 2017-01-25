@@ -35,6 +35,12 @@ public class Server extends test.Util.Application
         initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010");
         initData.properties.setProperty("ControllerAdapter.Endpoints", "default -p 12011");
         initData.properties.setProperty("ControllerAdapter.ThreadPool.Size", "1");
+
+        //
+        // This test kills connections, so we don't want warnings.
+        //
+        initData.properties.setProperty("Ice.Warn.Connections", "0");
+
         //
         // Limit the recv buffer size, this test relies on the socket
         // send() blocking after sending a given amount of data.

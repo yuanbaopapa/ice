@@ -80,7 +80,7 @@ public:
             // Close the connection otherwise the peer has no way to know that
             // the session has gone.
             //
-            _connection->close(false);
+            _connection->close(CloseGracefullyAndWait);
             _router->destroySession(_connection);
         }
     }
@@ -922,7 +922,7 @@ SessionRouterI::refreshSession(const Ice::ConnectionPtr& con)
             // Close the connection otherwise the peer has no way to know that the
             // session has gone.
             //
-            con->close(false);
+            con->close(CloseGracefullyAndWait);
             throw SessionNotExistException();
         }
     }
@@ -1149,10 +1149,10 @@ SessionRouterI::getRouterImpl(const ConnectionPtr& connection, const Ice::Identi
         if(_rejectTraceLevel >= 1)
         {
             Trace out(_instance->logger(), "Glacier2");
-            out << "rejecting request. no session is associated with the connection.\n";
+            out << "rejecting request, no session is associated with the connection.\n";
             out << "identity: " << identityToString(id);
         }
-        connection->close(true);
+        connection->close(CloseForcefully);
         throw ObjectNotExistException(__FILE__, __LINE__);
     }
     return 0;

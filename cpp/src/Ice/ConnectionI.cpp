@@ -409,29 +409,31 @@ Ice::ConnectionI::destroy(DestructionReason reason)
 }
 
 void
-Ice::ConnectionI::close(bool force)
+Ice::ConnectionI::close(ConnectionClose mode)
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
 
-    if(force)
+    if(mode == CloseForcefully)
     {
-        setState(StateClosed, ForcedCloseConnectionException(__FILE__, __LINE__));
+        setState(StateClosed, ConnectionManuallyClosedException(__FILE__, __LINE__, false));
+    }
+    else if(mode == CloseGracefully)
+    {
+        setState(StateClosing, ConnectionManuallyClosedException(__FILE__, __LINE__, true));
     }
     else
     {
+        assert(mode == CloseGracefullyAndWait);
+
         //
-        // If we do a graceful shutdown, then we wait until all
-        // outstanding requests have been completed. Otherwise, the
-        // CloseConnectionException will cause all outstanding
-        // requests to be retried, regardless of whether the server
-        // has processed them or not.
+        // Wait until all outstanding requests have been completed.
         //
         while(!_asyncRequests.empty())
         {
             wait();
         }
 
-        setState(StateClosing, CloseConnectionException(__FILE__, __LINE__));
+        setState(StateClosing, ConnectionManuallyClosedException(__FILE__, __LINE__, true));
     }
 }
 
@@ -550,13 +552,13 @@ Ice::ConnectionI::monitor(const IceUtil::Time& now, const ACMConfig& acm)
     //
     // We send a heartbeat if there was no activity in the last
     // (timeout / 4) period. Sending a heartbeat sooner than really
-    // needed is safer to ensure that the receiver will receive in
-    // time the heartbeat. Sending the heartbeat if there was no
+    // needed is safer to ensure that the receiver will receive the
+    // heartbeat in time. Sending the heartbeat if there was no
     // activity in the last (timeout / 2) period isn't enough since
     // monitor() is called only every (timeout / 2) period.
     //
     // Note that this doesn't imply that we are sending 4 heartbeats
-    // per timeout period because the monitor() method is sill only
+    // per timeout period because the monitor() method is still only
     // called every (timeout / 2) period.
     //
     if(acm.heartbeat == HeartbeatAlways ||
@@ -1923,7 +1925,7 @@ Ice::ConnectionI::finish(bool close)
             out << "closed " << _endpoint->protocol() << " connection\n" << toString();
 
             if(!(dynamic_cast<const CloseConnectionException*>(_exception.get()) ||
-                 dynamic_cast<const ForcedCloseConnectionException*>(_exception.get()) ||
+                 dynamic_cast<const ConnectionManuallyClosedException*>(_exception.get()) ||
                  dynamic_cast<const ConnectionTimeoutException*>(_exception.get()) ||
                  dynamic_cast<const CommunicatorDestroyedException*>(_exception.get()) ||
                  dynamic_cast<const ObjectAdapterDeactivatedException*>(_exception.get())))
@@ -2244,7 +2246,7 @@ Ice::ConnectionI::setState(State state, const LocalException& ex)
             // Don't warn about certain expected exceptions.
             //
             if(!(dynamic_cast<const CloseConnectionException*>(&ex) ||
-                 dynamic_cast<const ForcedCloseConnectionException*>(&ex) ||
+                 dynamic_cast<const ConnectionManuallyClosedException*>(&ex) ||
                  dynamic_cast<const ConnectionTimeoutException*>(&ex) ||
                  dynamic_cast<const CommunicatorDestroyedException*>(&ex) ||
                  dynamic_cast<const ObjectAdapterDeactivatedException*>(&ex) ||
@@ -2423,7 +2425,7 @@ Ice::ConnectionI::setState(State state)
         if(_observer && state == StateClosed && _exception)
         {
             if(!(dynamic_cast<const CloseConnectionException*>(_exception.get()) ||
-                 dynamic_cast<const ForcedCloseConnectionException*>(_exception.get()) ||
+                 dynamic_cast<const ConnectionManuallyClosedException*>(_exception.get()) ||
                  dynamic_cast<const ConnectionTimeoutException*>(_exception.get()) ||
                  dynamic_cast<const CommunicatorDestroyedException*>(_exception.get()) ||
                  dynamic_cast<const ObjectAdapterDeactivatedException*>(_exception.get()) ||
@@ -2453,8 +2455,7 @@ Ice::ConnectionI::setState(State state)
 void
 Ice::ConnectionI::initiateShutdown()
 {
-    assert(_state == StateClosing);
-    assert(_dispatchCount == 0);
+    assert(_state == StateClosing && _dispatchCount == 0);
 
     if(_shutdownInitiated)
     {
@@ -2484,7 +2485,7 @@ Ice::ConnectionI::initiateShutdown()
             setState(StateClosingPending);
 
             //
-            // Notify the the transceiver of the graceful connection closure.
+            // Notify the transceiver of the graceful connection closure.
             //
             SocketOperation op = _transceiver->closing(true, *_exception);
             if(op)
@@ -3184,7 +3185,7 @@ Ice::ConnectionI::parseMessage(InputStream& stream, Int& invokeNum, Int& request
                     setState(StateClosingPending, CloseConnectionException(__FILE__, __LINE__));
 
                     //
-                    // Notify the the transceiver of the graceful connection closure.
+                    // Notify the transceiver of the graceful connection closure.
                     //
                     SocketOperation op = _transceiver->closing(false, *_exception);
                     if(op)

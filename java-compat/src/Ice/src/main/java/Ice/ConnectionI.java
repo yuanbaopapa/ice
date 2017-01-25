@@ -155,25 +155,27 @@ public final class ConnectionI extends IceInternal.EventHandler
     }
 
     @Override
-    synchronized public void close(boolean force)
+    synchronized public void close(ConnectionClose mode)
     {
         if(Thread.interrupted())
         {
             throw new Ice.OperationInterruptedException();
         }
 
-        if(force)
+        if(mode == ConnectionClose.CloseForcefully)
         {
-            setState(StateClosed, new ForcedCloseConnectionException());
+            setState(StateClosed, new ConnectionManuallyClosedException(false));
+        }
+        else if(mode == ConnectionClose.CloseGracefully)
+        {
+            setState(StateClosing, new ConnectionManuallyClosedException(true));
         }
         else
         {
+            assert(mode == ConnectionClose.CloseGracefullyAndWait);
+
             //
-            // If we do a graceful shutdown, then we wait until all
-            // outstanding requests have been completed. Otherwise,
-            // the CloseConnectionException will cause all outstanding
-            // requests to be retried, regardless of whether the
-            // server has processed them or not.
+            // Wait until all outstanding requests have been completed.
             //
             while(!_asyncRequests.isEmpty())
             {
@@ -187,7 +189,7 @@ public final class ConnectionI extends IceInternal.EventHandler
                 }
             }
 
-            setState(StateClosing, new CloseConnectionException());
+            setState(StateClosing, new ConnectionManuallyClosedException(true));
         }
     }
 
@@ -279,14 +281,14 @@ public final class ConnectionI extends IceInternal.EventHandler
         // We send a heartbeat if there was no activity in the last
         // (timeout / 4) period. Sending a heartbeat sooner than
         // really needed is safer to ensure that the receiver will
-        // receive in time the heartbeat. Sending the heartbeat if
+        // receive the heartbeat in time. Sending the heartbeat if
         // there was no activity in the last (timeout / 2) period
         // isn't enough since monitor() is called only every (timeout
         // / 2) period.
         //
         // Note that this doesn't imply that we are sending 4
         // heartbeats per timeout period because the monitor() method
-        // is sill only called every (timeout / 2) period.
+        // is still only called every (timeout / 2) period.
         //
         if(acm.heartbeat == ACMHeartbeat.HeartbeatAlways ||
            (acm.heartbeat != ACMHeartbeat.HeartbeatOff && _writeStream.isEmpty() &&
@@ -852,8 +854,7 @@ public final class ConnectionI extends IceInternal.EventHandler
     public synchronized void invokeException(int requestId, LocalException ex, int invokeNum, boolean amd)
     {
         //
-        // Fatal exception while invoking a request. Since
-        // sendResponse/sendNoResponse isn't
+        // Fatal exception while invoking a request. Since sendResponse/sendNoResponse isn't
         // called in case of a fatal exception we decrement _dispatchCount here.
         //
 
@@ -1117,7 +1118,7 @@ public final class ConnectionI extends IceInternal.EventHandler
                 }
                 else
                 {
-                    assert (_state <= StateClosingPending);
+                    assert(_state <= StateClosingPending);
 
                     //
                     // We parse messages first, if we receive a close
@@ -1293,7 +1294,8 @@ public final class ConnectionI extends IceInternal.EventHandler
             //
             if(info.invokeNum > 0)
             {
-                invokeAll(info.stream, info.invokeNum, info.requestId, info.compress, info.servantManager, info.adapter);
+                invokeAll(info.stream, info.invokeNum, info.requestId, info.compress, info.servantManager,
+                          info.adapter);
 
                 //
                 // Don't increase dispatchedCount, the dispatch count is
@@ -1450,7 +1452,7 @@ public final class ConnectionI extends IceInternal.EventHandler
                 // Trace the cause of unexpected connection closures
                 //
                 if(!(_exception instanceof CloseConnectionException ||
-                     _exception instanceof ForcedCloseConnectionException ||
+                     _exception instanceof ConnectionManuallyClosedException ||
                      _exception instanceof ConnectionTimeoutException ||
                      _exception instanceof CommunicatorDestroyedException ||
                      _exception instanceof ObjectAdapterDeactivatedException))
@@ -1799,7 +1801,7 @@ public final class ConnectionI extends IceInternal.EventHandler
                 // Don't warn about certain expected exceptions.
                 //
                 if(!(_exception instanceof CloseConnectionException ||
-                     _exception instanceof ForcedCloseConnectionException ||
+                     _exception instanceof ConnectionManuallyClosedException ||
                      _exception instanceof ConnectionTimeoutException ||
                      _exception instanceof CommunicatorDestroyedException ||
                      _exception instanceof ObjectAdapterDeactivatedException ||
@@ -1989,7 +1991,7 @@ public final class ConnectionI extends IceInternal.EventHandler
             if(_observer != null && state == StateClosed && _exception != null)
             {
                 if(!(_exception instanceof CloseConnectionException ||
-                     _exception instanceof ForcedCloseConnectionException ||
+                     _exception instanceof ConnectionManuallyClosedException ||
                      _exception instanceof ConnectionTimeoutException ||
                      _exception instanceof CommunicatorDestroyedException ||
                      _exception instanceof ObjectAdapterDeactivatedException ||
@@ -2018,8 +2020,7 @@ public final class ConnectionI extends IceInternal.EventHandler
 
     private void initiateShutdown()
     {
-        assert (_state == StateClosing);
-        assert (_dispatchCount == 0);
+        assert(_state == StateClosing && _dispatchCount == 0);
 
         if(_shutdownInitiated)
         {
@@ -2046,8 +2047,7 @@ public final class ConnectionI extends IceInternal.EventHandler
                 setState(StateClosingPending);
 
                 //
-                // Notify the the transceiver of the graceful connection
-                // closure.
+                // Notify the the transceiver of the graceful connection closure.
                 //
                 int op = _transceiver.closing(true, _exception);
                 if(op != 0)
@@ -2097,8 +2097,7 @@ public final class ConnectionI extends IceInternal.EventHandler
         }
 
         //
-        // Update the connection description once the transceiver is
-        // initialized.
+        // Update the connection description once the transceiver is initialized.
         //
         _desc = _transceiver.toString();
         _initialized = true;
@@ -2257,8 +2256,7 @@ public final class ConnectionI extends IceInternal.EventHandler
         }
         else if(_state == StateClosingPending && _writeStream.pos() == 0)
         {
-            // Message wasn't sent, empty the _writeStream, we're not going to
-            // send more data.
+            // Message wasn't sent, empty the _writeStream, we're not going to send more data.
             OutgoingMessage message = _sendStreams.getFirst();
             _writeStream.swap(message.stream);
             return IceInternal.SocketOperation.None;
@@ -2565,8 +2563,7 @@ public final class ConnectionI extends IceInternal.EventHandler
                         setState(StateClosingPending, new CloseConnectionException());
 
                         //
-                        // Notify the the transceiver of the graceful connection
-                        // closure.
+                        // Notify the the transceiver of the graceful connection closure.
                         //
                         int op = _transceiver.closing(false, _exception);
                         if(op != 0)

@@ -258,7 +258,7 @@
                     ).then(
                         function(conn)
                         {
-                            return conn.close(false);
+                            return conn.close(Ice.ConnectionClose.CloseGracefullyAndWait);
                         }
                     ).then(
                         function()
@@ -337,7 +337,7 @@
                                                         }).then(
                                                             function(c)
                                                             {
-                                                                return c.close(false);
+                                                                return c.close(Ice.ConnectionClose.CloseGracefullyAndWait);
                                                             }
                                                         );
                                                 }));
@@ -420,7 +420,7 @@
                     ).then(
                         function(conn)
                         {
-                            return conn.close(false);
+                            return conn.close(Ice.ConnectionClose.CloseGracefullyAndWait);
                         }
                     ).then(
                         function()
@@ -583,7 +583,7 @@
                                                         }).then(
                                                             function(c)
                                                             {
-                                                                return c.close(false);
+                                                                return c.close(Ice.ConnectionClose.CloseGracefullyAndWait);
                                                             },
                                                             function(ex)
                                                             {
@@ -649,7 +649,7 @@
                             }
                             return prx.ice_getConnection();
                         }
-                    ).then(conn => conn.close(false)
+                    ).then(conn => conn.close(Ice.ConnectionClose.CloseGracefullyAndWait)
                     ).then(() => names.length > 0 ? f1() : prx);
                 };
 
@@ -676,7 +676,7 @@
                     ).then(
                         function(conn)
                         {
-                            return conn.close(false);
+                            return conn.close(Ice.ConnectionClose.CloseGracefullyAndWait);
                         }
                     ).then(
                         function()

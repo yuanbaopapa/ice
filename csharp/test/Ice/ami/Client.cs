@@ -34,6 +34,8 @@ public class Client
             Ice.InitializationData initData = new Ice.InitializationData();
             initData.properties = Ice.Util.createProperties(ref args);
             initData.properties.setProperty("Ice.Warn.AMICallback", "0");
+            initData.properties.setProperty("Ice.Warn.Connections", "0");
+
             //
             // Limit the send buffer size, this test relies on the socket
             // send() blocking after sending a given amount of data.

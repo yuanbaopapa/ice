@@ -78,15 +78,22 @@ ZEND_METHOD(Ice_Connection, close)
     Ice::ConnectionPtr _this = Wrapper<Ice::ConnectionPtr>::value(getThis());
     assert(_this);
 
-    zend_bool b;
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), const_cast<char*>("b"), &b) != SUCCESS)
+    zval* mode;
+    if(zend_parse_parameters(ZEND_NUM_ARGS(), const_cast<char*>("z"), &mode) != SUCCESS)
     {
         RETURN_NULL();
     }
 
+    if(Z_TYPE_P(mode) != IS_LONG)
+    {
+        invalidArgument("value for 'mode' argument must be an enumerator of ConnectionClose");
+        RETURN_NULL();
+    }
+    Ice::ConnectionClose cc = static_cast<Ice::ConnectionClose>(Z_LVAL_P(mode));
+
     try
     {
-        _this->close(b ? true : false);
+        _this->close(cc);
     }
     catch(const IceUtil::Exception& ex)
     {

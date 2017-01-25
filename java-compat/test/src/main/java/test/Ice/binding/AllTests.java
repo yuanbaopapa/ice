@@ -170,7 +170,7 @@ public class AllTests
                 test(test2.ice_getConnection() == test3.ice_getConnection());
 
                 names.remove(test1.getAdapterName());
-                test1.ice_getConnection().close(false);
+                test1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             }
 
             //
@@ -192,7 +192,7 @@ public class AllTests
 
                 for(RemoteObjectAdapterPrx p : adapters)
                 {
-                    p.getTestIntf().ice_getConnection().close(false);
+                    p.getTestIntf().ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 }
             }
 
@@ -218,7 +218,7 @@ public class AllTests
                 test(test2.ice_getConnection() == test3.ice_getConnection());
 
                 names.remove(test1.getAdapterName());
-                test1.ice_getConnection().close(false);
+                test1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             }
 
             //
@@ -326,7 +326,7 @@ public class AllTests
                 {
                     try
                     {
-                        a.getTestIntf().ice_getConnection().close(false);
+                        a.getTestIntf().ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     }
                     catch(Ice.LocalException ex)
                     {
@@ -368,7 +368,7 @@ public class AllTests
                 test(test2.ice_getConnection() == test3.ice_getConnection());
 
                 names.remove(getAdapterNameWithAMI(test1));
-                test1.ice_getConnection().close(false);
+                test1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             }
 
             //
@@ -390,7 +390,7 @@ public class AllTests
 
                 for(RemoteObjectAdapterPrx p : adapters)
                 {
-                    p.getTestIntf().ice_getConnection().close(false);
+                    p.getTestIntf().ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 }
             }
 
@@ -416,7 +416,7 @@ public class AllTests
                 test(test2.ice_getConnection() == test3.ice_getConnection());
 
                 names.remove(getAdapterNameWithAMI(test1));
-                test1.ice_getConnection().close(false);
+                test1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             }
 
             //
@@ -449,7 +449,7 @@ public class AllTests
             while(!names.isEmpty())
             {
                 names.remove(test.getAdapterName());
-                test.ice_getConnection().close(false);
+                test.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             }
 
             test = TestIntfPrxHelper.uncheckedCast(test.ice_endpointSelection(Ice.EndpointSelectionType.Random));
@@ -461,7 +461,7 @@ public class AllTests
             while(!names.isEmpty())
             {
                 names.remove(test.getAdapterName());
-                test.ice_getConnection().close(false);
+                test.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             }
 
             deactivate(com, adapters);
@@ -519,11 +519,11 @@ public class AllTests
             adapters.add(com.createObjectAdapter("Adapter36", endpoints[2].toString()));
             for(i = 0; i < nRetry && test.getAdapterName().equals("Adapter36"); i++);
             test(i == nRetry);
-            test.ice_getConnection().close(false);
+            test.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             adapters.add(com.createObjectAdapter("Adapter35", endpoints[1].toString()));
             for(i = 0; i < nRetry && test.getAdapterName().equals("Adapter35"); i++);
             test(i == nRetry);
-            test.ice_getConnection().close(false);
+            test.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
             adapters.add(com.createObjectAdapter("Adapter34", endpoints[0].toString()));
             for(i = 0; i < nRetry && test.getAdapterName().equals("Adapter34"); i++);
             test(i == nRetry);
@@ -802,7 +802,7 @@ public class AllTests
                 for(i = 0; i < 5; i++)
                 {
                     test(test.getAdapterName().equals("Adapter82"));
-                    test.ice_getConnection().close(false);
+                    test.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 }
 
                 TestIntfPrx testSecure = TestIntfPrxHelper.uncheckedCast(test.ice_secure(true));
@@ -818,7 +818,7 @@ public class AllTests
                 for(i = 0; i < 5; i++)
                 {
                     test(test.getAdapterName().equals("Adapter81"));
-                    test.ice_getConnection().close(false);
+                    test.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 }
 
                 com.createObjectAdapter("Adapter83", (test.ice_getEndpoints()[1]).toString()); // Reactive tcp OA.
@@ -826,7 +826,7 @@ public class AllTests
                 for(i = 0; i < 5; i++)
                 {
                     test(test.getAdapterName().equals("Adapter83"));
-                    test.ice_getConnection().close(false);
+                    test.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 }
 
                 com.deactivateObjectAdapter(adapters.get(0));

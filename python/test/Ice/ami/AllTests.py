@@ -693,7 +693,7 @@ def allTests(communicator, collocated):
         test(p.opBatchCount() == 0)
         b1 = p.ice_batchOneway()
         b1.opBatch()
-        b1.ice_getConnection().close(False)
+        b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
         cb = FlushCallback()
         r = b1.begin_ice_flushBatchRequests(cb.exception, cb.sent)
         cb.check()
@@ -707,7 +707,7 @@ def allTests(communicator, collocated):
         test(p.opBatchCount() == 0)
         b1 = p.ice_batchOneway()
         b1.opBatch()
-        b1.ice_getConnection().close(False)
+        b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
         cb = FlushCallback(cookie)
         r = b1.begin_ice_flushBatchRequests(lambda ex: cb.exceptionWC(ex, cookie), lambda ss: cb.sentWC(ss, cookie))
         cb.check()
@@ -754,7 +754,7 @@ def allTests(communicator, collocated):
         test(p.opBatchCount() == 0)
         b1 = Test.TestIntfPrx.uncheckedCast(p.ice_getConnection().createProxy(p.ice_getIdentity()).ice_batchOneway())
         b1.opBatch()
-        b1.ice_getConnection().close(False)
+        b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
         cb = FlushExCallback()
         r = b1.ice_getConnection().begin_flushBatchRequests(cb.exception, cb.sent)
         cb.check()
@@ -768,7 +768,7 @@ def allTests(communicator, collocated):
         test(p.opBatchCount() == 0)
         b1 = Test.TestIntfPrx.uncheckedCast(p.ice_getConnection().createProxy(p.ice_getIdentity()).ice_batchOneway())
         b1.opBatch()
-        b1.ice_getConnection().close(False)
+        b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
         cb = FlushExCallback(cookie)
         r = b1.ice_getConnection().begin_flushBatchRequests(lambda ex: cb.exceptionWC(ex, cookie),
                                                             lambda ss: cb.sentWC(ss, cookie))
@@ -800,7 +800,7 @@ def allTests(communicator, collocated):
         test(p.opBatchCount() == 0)
         b1 = Test.TestIntfPrx.uncheckedCast(p.ice_getConnection().createProxy(p.ice_getIdentity()).ice_batchOneway())
         b1.opBatch()
-        b1.ice_getConnection().close(False)
+        b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
         cb = FlushCallback()
         r = communicator.begin_flushBatchRequests(cb.exception, cb.sent)
         cb.check()
@@ -840,7 +840,7 @@ def allTests(communicator, collocated):
         b2.ice_getConnection() # Ensure connection is established.
         b1.opBatch()
         b2.opBatch()
-        b1.ice_getConnection().close(False)
+        b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
         cb = FlushCallback()
         r = communicator.begin_flushBatchRequests(cb.exception, cb.sent)
         cb.check()
@@ -860,8 +860,8 @@ def allTests(communicator, collocated):
         b2.ice_getConnection() # Ensure connection is established.
         b1.opBatch()
         b2.opBatch()
-        b1.ice_getConnection().close(False)
-        b2.ice_getConnection().close(False)
+        b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
+        b2.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
         cb = FlushCallback()
         r = communicator.begin_flushBatchRequests(cb.exception, cb.sent)
         cb.check()
@@ -1044,9 +1044,27 @@ def allTests(communicator, collocated):
     print("ok")
 
     if p.ice_getConnection():
-        sys.stdout.write("testing close connection with sending queue... ")
+        sys.stdout.write("testing graceful close connection with wait... ")
         sys.stdout.flush()
 
+        #
+        # Local case: begin several requests, close the connection gracefully, and make sure it waits
+        # for the requests to complete.
+        #
+        results = []
+        for i in range(0, 3):
+            results.append(p.begin_sleep(50))
+        p.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
+        for r in results:
+            r.waitForCompleted()
+            try:
+                r.throwLocalException()
+            except:
+                test(False)
+
+        #
+        # Remote case.
+        #
         if sys.version_info[0] == 2:
             b = [chr(random.randint(0, 255)) for x in range(0, 10*1024)]
             seq = ''.join(b)
@@ -1067,7 +1085,7 @@ def allTests(communicator, collocated):
             results = []
             for i in range(0, maxQueue):
                 results.append(p.begin_opWithPayload(seq))
-            if not p.begin_close(False).isSent():
+            if not p.begin_close(Test.CloseMode.CloseGracefullyAndWait).isSent():
                 for i in range(0, maxQueue):
                     r = p.begin_opWithPayload(seq)
                     results.append(r)
@@ -1084,6 +1102,78 @@ def allTests(communicator, collocated):
                     r.throwLocalException()
                 except Ice.LocalException:
                     test(False)
+
+        print("ok")
+
+        sys.stdout.write("testing graceful close connection without wait... ")
+        sys.stdout.flush()
+
+        #
+        # Local case: start a lengthy operation and then close the connection gracefully on the client side
+        # without waiting for the pending invocation to complete. There will be no retry and we expect the
+        # invocation to fail with ConnectionManuallyClosedException.
+        #
+        # This test requires two threads in the server's thread pool: one will block in sleep() and the other
+        # will process the CloseConnection message.
+        # 
+        r = p.begin_sleep(100)
+        p.ice_getConnection().close(Ice.ConnectionClose.CloseGracefully)
+        r.waitForCompleted()
+        try:
+            r.throwLocalException()
+            test(False)
+        except Ice.ConnectionManuallyClosedException, ex:
+            test(ex.graceful)
+
+        #
+        # Remote case: the server closes the connection gracefully. Our call to TestIntf::close()
+        # completes successfully and then the connection should be closed immediately afterward,
+        # despite the fact that there's a pending call to sleep(). The call to sleep() should be
+        # automatically retried and complete successfully.
+        #
+        con = p.ice_getConnection()
+        cb = CallbackBase()
+        con.setCloseCallback(lambda c: cb.called())
+        r = p.begin_sleep(100)
+        p.close(Test.CloseMode.CloseGracefully)
+        cb.check()
+        r.waitForCompleted()
+        try:
+            r.throwLocalException()
+        except:
+            test(false)
+        p.ice_ping()
+        test(p.ice_getConnection() != con)
+
+        print("ok")
+
+        sys.stdout.write("testing forceful close connection... ")
+        sys.stdout.flush()
+
+        #
+        # Local case: start a lengthy operation and then close the connection forcefully on the client side.
+        # There will be no retry and we expect the invocation to fail with ConnectionManuallyClosedException.
+        # 
+        r = p.begin_sleep(100)
+        p.ice_getConnection().close(Ice.ConnectionClose.CloseForcefully)
+        r.waitForCompleted()
+        try:
+            r.throwLocalException()
+            test(False)
+        except Ice.ConnectionManuallyClosedException, ex:
+            test(not ex.graceful)
+
+        #
+        # Remote case: the server closes the connection forcefully. This causes the request to fail
+        # with a ConnectionLostException. Since the close() operation is not idempotent, the client
+        # will not retry.
+        #
+        try:
+            p.close(Test.CloseMode.CloseForcefully)
+            test(False)
+        except Ice.ConnectionLostException:
+            # Expected.
+            pass
 
         print("ok")
 

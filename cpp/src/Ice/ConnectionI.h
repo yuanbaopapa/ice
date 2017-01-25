@@ -157,12 +157,12 @@ public:
     void activate();
     void hold();
     void destroy(DestructionReason);
-    virtual void close(bool); // From Connection.
+    virtual void close(ConnectionClose); // From Connection.
 
     bool isActiveOrHolding() const;
     bool isFinished() const;
 
-    void throwException() const; // Throws the connection exception if destroyed.
+    virtual void throwException() const; // From Connection. Throws the connection exception if destroyed.
 
     void waitUntilHolding() const;
     void waitUntilFinished(); // Not const, as this might close the connection upon timeout.

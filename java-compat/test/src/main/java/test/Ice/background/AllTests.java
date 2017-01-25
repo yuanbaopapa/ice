@@ -395,7 +395,7 @@ public class AllTests
             configuration.buffered(true);
             backgroundController.buffered(true);
             background.begin_op();
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(Ice.ConnectionClose.CloseForcefully);
             background.begin_op();
 
             OpAMICallbackNoOp cb = new OpAMICallbackNoOp();
@@ -436,7 +436,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         for(int i = 0; i < 4; ++i)
         {
@@ -502,7 +502,7 @@ public class AllTests
             }
 
             configuration.connectException(new Ice.SocketException());
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(Ice.ConnectionClose.CloseForcefully);
             try
             {
                 Thread.sleep(10);
@@ -545,7 +545,7 @@ public class AllTests
             ex.printStackTrace();
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         for(int i = 0; i < 4; i++)
         {
@@ -608,7 +608,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -620,7 +620,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -664,7 +664,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -699,7 +699,7 @@ public class AllTests
             }
 
             configuration.initializeException(new Ice.SocketException());
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(Ice.ConnectionClose.CloseForcefully);
             try
             {
                 Thread.sleep(10);
@@ -725,7 +725,7 @@ public class AllTests
             }
 
             configuration.initializeSocketStatus(IceInternal.SocketOperation.Write);
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(Ice.ConnectionClose.CloseForcefully);
 
             try
             {
@@ -740,7 +740,7 @@ public class AllTests
             configuration.initializeSocketStatus(IceInternal.SocketOperation.None);
 
             ctl.initializeException(true);
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(Ice.ConnectionClose.CloseForcefully);
             try
             {
                 Thread.sleep(10);
@@ -768,7 +768,7 @@ public class AllTests
             try
             {
                 ctl.initializeSocketStatus(IceInternal.SocketOperation.Write);
-                background.ice_getCachedConnection().close(true);
+                background.ice_getCachedConnection().close(Ice.ConnectionClose.CloseForcefully);
                 background.op();
                 ctl.initializeSocketStatus(IceInternal.SocketOperation.None);
             }
@@ -803,7 +803,7 @@ public class AllTests
         {
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -849,7 +849,7 @@ public class AllTests
                 ex.printStackTrace();
                 test(false);
             }
-            background.ice_getConnection().close(false);
+            background.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
             try
             {
@@ -919,7 +919,7 @@ public class AllTests
             ex.printStackTrace();
             test(false);
         }
-        background.ice_getConnection().close(false);
+        background.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         try
         {
@@ -949,7 +949,7 @@ public class AllTests
         backgroundBatchOneway.op();
         ctl.resumeAdapter();
         backgroundBatchOneway.ice_flushBatchRequests();
-        backgroundBatchOneway.ice_getConnection().close(false);
+        backgroundBatchOneway.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         //
         // Send bigger requests to test with auto-flushing.
@@ -961,7 +961,7 @@ public class AllTests
         backgroundBatchOneway.opWithPayload(seq);
         ctl.resumeAdapter();
         backgroundBatchOneway.ice_flushBatchRequests();
-        backgroundBatchOneway.ice_getConnection().close(false);
+        backgroundBatchOneway.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         //
         // Then try the same thing with async flush.
@@ -973,7 +973,7 @@ public class AllTests
         backgroundBatchOneway.op();
         ctl.resumeAdapter();
         backgroundBatchOneway.begin_ice_flushBatchRequests();
-        backgroundBatchOneway.ice_getConnection().close(false);
+        backgroundBatchOneway.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
 
         ctl.holdAdapter();
         backgroundBatchOneway.opWithPayload(seq);
@@ -983,7 +983,7 @@ public class AllTests
         ctl.resumeAdapter();
         r = backgroundBatchOneway.begin_ice_flushBatchRequests();
         backgroundBatchOneway.end_ice_flushBatchRequests(r);
-        backgroundBatchOneway.ice_getConnection().close(false);
+        backgroundBatchOneway.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
     }
 
     private static void
@@ -1325,7 +1325,7 @@ public class AllTests
             }
 
             background.ice_ping();
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(Ice.ConnectionClose.CloseForcefully);
             try
             {
                 Thread.sleep(10);
@@ -1334,7 +1334,7 @@ public class AllTests
             {
             }
 
-            background.ice_getCachedConnection().close(true);
+            background.ice_getCachedConnection().close(Ice.ConnectionClose.CloseForcefully);
         }
 
         thread1._destroy();

@@ -76,7 +76,8 @@ local interface CloseCallback
     /**
      *
      * This method is called by the the connection when the connection
-     * is closed.
+     * is closed. If the callback needs more information about the closure,
+     * it can call {@link Connection#throwException}.
      *
      * @param con The connection that closed.
      **/
@@ -131,6 +132,27 @@ local struct ACM
 };
 
 /**
+ * Determines the behavior when manually closing a connection.
+ **/
+["cpp:unscoped"]
+local enum ConnectionClose
+{
+    /**
+     * Close the connection immediately without sending a close connection protocol message to the peer
+     * and waiting for the peer to acknowledge it.
+     **/
+    CloseForcefully,
+    /**
+     * Close the connection by notifying the peer but do not wait for pending invocations to complete.
+     **/
+    CloseGracefully,
+    /**
+     * Wait for all pending invocations to complete before closing the connection.
+     **/
+    CloseGracefullyAndWait
+};
+
+/**
  *
  * The user-level interface to a connection.
  *
@@ -139,17 +161,13 @@ local interface Connection
 {
     /**
      *
-     * Close a connection, either gracefully or forcefully. If a
-     * connection is closed forcefully, it closes immediately, without
-     * sending the relevant close connection protocol messages to the
-     * peer and waiting for the peer to acknowledge these protocol
-     * messages.
+     * Manually close the connection using the specified closure mode.
      *
-     * @param force If true, close forcefully. Otherwise the
-     * connection is closed gracefully.
+     * @param mode Determines how the connection will be closed.
      *
+     * @see ConnectionClose
      **/
-    void close(bool force);
+    void close(ConnectionClose mode);
 
     /**
      *
@@ -223,18 +241,19 @@ local interface Connection
 
     /**
      *
-     * Set callback on the connection. The callback is called by the
+     * Set a close callback on the connection. The callback is called by the
      * connection when it's closed. The callback is called from the
-     * Ice thread pool associated with the connection.
+     * Ice thread pool associated with the connection. If the callback needs
+     * more information about the closure, it can call {@link Connection#throwException}.
      *
-     * @param callback The closed callback object.
+     * @param callback The close callback object.
      *
      **/
     void setCloseCallback(CloseCallback callback);
 
     /**
      *
-     * Set callback on the connection. The callback is called by the
+     * Set a heartbeat callback on the connection. The callback is called by the
      * connection when a heartbeat is received. The callback is called
      * from the Ice thread pool associated with the connection.
      *
@@ -312,7 +331,6 @@ local interface Connection
      **/
     ["cpp:const"] ConnectionInfo getInfo();
 
-
     /**
      *
      * Set the connection buffer receive/send size.
@@ -322,6 +340,17 @@ local interface Connection
      *
      **/
     void setBufferSize(int rcvSize, int sndSize);
+
+    /**
+     *
+     * Throw an exception indicating the reason for connection closure. For example,
+     * {@link CloseConnectionException} is raised if the connection was closed gracefully,
+     * whereas {@link ConnectionManuallyClosedException} is raised if the connection was
+     * manually closed by the application. This operation does nothing if the connection is
+     * not yet closed.
+     *
+     **/
+    ["cpp:const"] void throwException();
 };
 
 /**

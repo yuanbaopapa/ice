@@ -165,7 +165,7 @@ public:
                     // The incoming connection is already closed. There's no point in leaving the outgoing
                     // connection open.
                     //
-                    outgoing->close(false);
+                    outgoing->close(CloseGracefully);
                 }
                 else
                 {
@@ -199,15 +199,12 @@ public:
             IceUtil::Mutex::Lock lock(_lock);
 
             //
-            // The outgoing connection failed so we forcefully close the incoming connection. closed() will eventually
+            // The outgoing connection failed so we close the incoming connection. closed() will eventually
             // be called for it.
-            //
-            // TBD: It would be better to gracefully close without waiting for pending invocations to complete
-            // (ICE-7468).
             //
             if(_incoming)
             {
-                _incoming->close(true);
+                _incoming->close(CloseGracefully);
             }
         }
     }
@@ -243,20 +240,40 @@ public:
         }
 
         //
-        // Forcefully close the corresponding connection.
-        //
-        // TBD: It would be better to gracefully close without waiting for pending invocations to complete (ICE-7468).
+        // Close the corresponding connection.
         //
         if(toBeClosed)
         {
-            toBeClosed->close(true);
+            //
+            // Examine the exception that caused the connection to be closed. A CloseConnectionException
+            // indicates the connection was closed gracefully and we do the same. We also look for
+            // ConnectionManuallyClosedException, which indicates the connection was closed locally.
+            // We close forcefully for any other exception.
+            //
+            try
+            {
+                con->throwException();
+            }
+            catch(const Ice::CloseConnectionException&)
+            {
+                toBeClosed->close(CloseGracefully);
+            }
+            catch(const Ice::ConnectionManuallyClosedException& ex)
+            {
+                //
+                // Connection was manually closed by the bridge.
+                //
+                toBeClosed->close(ex.graceful ? CloseGracefully : CloseForcefully);
+            }
+            catch(...)
+            {
+                toBeClosed->close(CloseForcefully);
+            }
         }
 
         //
         // Even though the connection is already closed, we still need to "complete" the pending invocations so
         // that the connection's dispatch count is updated correctly.
-        //
-        // TBD: We can remove this when ICE-7468 is fixed.
         //
         for(InvocationList::iterator p = queuedInvocations.begin(); p != queuedInvocations.end(); ++p)
         {
@@ -385,6 +402,13 @@ private:
 
     bool _closed;
     ConnectionPtr _outgoing;
+
+    //
+    // We maintain our own queue for invocations that arrive on the incoming connection before the outgoing
+    // connection has been established. We don't want to forward these to proxies and let the proxies handle
+    // the queuing because then the invocations could be sent out of order (e.g., when invocations are split
+    // among twoway/oneway/datagram proxies).
+    //
     InvocationList _queue;
 };
 typedef IceUtil::Handle<BridgeConnection> BridgeConnectionPtr;
@@ -764,6 +788,14 @@ BridgeService::initializeCommunicator(int& argc, char* argv[], const Initializat
     StringSeq args = argsToStringSeq(argc, argv);
     args = initData.properties->parseCommandLineOptions("IceBridge", args);
     stringSeqToArgs(args, argc, argv);
+
+    //
+    // Disable automatic retry by default.
+    //
+    if(initData.properties->getProperty("Ice.RetryIntervals").empty())
+    {
+        initData.properties->setProperty("Ice.RetryIntervals", "-1");
+    }
 
     return Service::initializeCommunicator(argc, argv, initData);
 }

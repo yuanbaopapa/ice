@@ -115,7 +115,7 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
                     //
                     for(Ice.ConnectionI c : connections)
                     {
-                        c.close(true);
+                        c.close(Ice.ConnectionClose.CloseForcefully);
                     }
                     throw e;
                 }
