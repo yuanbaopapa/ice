@@ -2695,8 +2695,10 @@ public class AMI
                 // This test requires two threads in the server's thread pool: one will block in sleep() and the other
                 // will process the CloseConnection message.
                 //
+                p.ice_ping();
+                Ice.Connection con = p.ice_getConnection();
                 Ice.AsyncResult r = p.begin_sleep(100);
-                p.ice_getConnection().close(Ice.ConnectionClose.CloseGracefully);
+                con.close(Ice.ConnectionClose.CloseGracefully);
                 r.waitForCompleted();
                 try
                 {
@@ -2714,7 +2716,8 @@ public class AMI
                 // despite the fact that there's a pending call to sleep(). The call to sleep() should be
                 // automatically retried and complete successfully.
                 //
-                Ice.Connection con = p.ice_getConnection();
+                p.ice_ping();
+                con = p.ice_getConnection();
                 CloseCallback cb = new CloseCallback();
                 con.setCloseCallback(cb);
                 r = p.begin_sleep(100);
@@ -2731,23 +2734,6 @@ public class AMI
                 }
                 p.ice_ping();
                 test(p.ice_getConnection() != con);
-
-/*
-                //
-                // Remote case: the server closes the connection gracefully. This causes the initial request to fail
-                // with a CloseConnectionException. The client will retry and the retried invocation will also fail
-                // with CloseConnectionException.
-                //
-                try
-                {
-                    p.close(CloseMode.CloseGracefully);
-                    test(false);
-                }
-                catch(Ice.CloseConnectionException ex)
-                {
-                    // Expected.
-                }
-*/
             }
             out.println("ok");
 
@@ -2758,8 +2744,10 @@ public class AMI
                 // Local case: start a lengthy operation and then close the connection forcefully on the client side.
                 // There will be no retry and we expect the invocation to fail with ConnectionManuallyClosedException.
                 //
+                p.ice_ping();
+                Ice.Connection con = p.ice_getConnection();
                 Ice.AsyncResult r = p.begin_sleep(100);
-                p.ice_getConnection().close(Ice.ConnectionClose.CloseForcefully);
+                con.close(Ice.ConnectionClose.CloseForcefully);
                 r.waitForCompleted();
                 try
                 {

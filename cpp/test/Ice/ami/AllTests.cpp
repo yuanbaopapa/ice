@@ -2288,12 +2288,14 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 // This test requires two threads in the server's thread pool: one will block in sleep() and the other
                 // will process the CloseConnection message.
                 // 
+                p->ice_ping();
+                auto con = p->ice_getConnection();
                 auto s = make_shared<promise<void>>();
                 p->sleepAsync(100,
                               [s]() { s->set_value(); },
                               [s](exception_ptr ex) { s->set_exception(ex); });
                 future<void> f = s->get_future();
-                p->ice_getConnection()->close(Ice::ConnectionClose::CloseGracefully);
+                con->close(Ice::ConnectionClose::CloseGracefully);
                 try
                 {
                     f.get();
@@ -2310,7 +2312,8 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 // despite the fact that there's a pending call to sleep(). The call to sleep() should be
                 // automatically retried and complete successfully with a new connection.
                 //
-                auto con = p->ice_getConnection();
+                p->ice_ping();
+                con = p->ice_getConnection();
                 auto sc = make_shared<promise<void>>();
                 con->setCloseCallback(
                     [sc](Ice::ConnectionPtr connection)
@@ -2344,12 +2347,14 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 // Local case: start a lengthy operation and then close the connection forcefully on the client side.
                 // There will be no retry and we expect the invocation to fail with ConnectionManuallyClosedException.
                 // 
+                p->ice_ping();
+                auto con = p->ice_getConnection();
                 auto s = make_shared<promise<void>>();
                 p->sleepAsync(100,
                               [s]() { s->set_value(); },
                               [s](exception_ptr ex) { s->set_exception(ex); });
                 future<void> f = s->get_future();
-                p->ice_getConnection()->close(Ice::ConnectionClose::CloseForcefully);
+                con->close(Ice::ConnectionClose::CloseForcefully);
                 try
                 {
                     f.get();
@@ -3957,8 +3962,10 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
             // This test requires two threads in the server's thread pool: one will block in sleep() and the other
             // will process the CloseConnection message.
             // 
+            p->ice_ping();
+            Ice::ConnectionPtr con = p->ice_getConnection();
             Ice::AsyncResultPtr r = p->begin_sleep(100);
-            p->ice_getConnection()->close(Ice::CloseGracefully);
+            con->close(Ice::CloseGracefully);
             r->waitForCompleted();
             try
             {
@@ -3976,7 +3983,8 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
             // despite the fact that there's a pending call to sleep(). The call to sleep() should be
             // automatically retried and complete successfully.
             //
-            Ice::ConnectionPtr con = p->ice_getConnection();
+            p->ice_ping();
+            con = p->ice_getConnection();
             CloseCallbackPtr cb = new CloseCallback;
             con->setCloseCallback(cb);
             r = p->begin_sleep(100);
@@ -4002,8 +4010,10 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
             // Local case: start a lengthy operation and then close the connection forcefully on the client side.
             // There will be no retry and we expect the invocation to fail with ConnectionManuallyClosedException.
             // 
+            p->ice_ping();
+            Ice::ConnectionPtr con = p->ice_getConnection();
             Ice::AsyncResultPtr r = p->begin_sleep(100);
-            p->ice_getConnection()->close(Ice::CloseForcefully);
+            con->close(Ice::CloseForcefully);
             r->waitForCompleted();
             try
             {

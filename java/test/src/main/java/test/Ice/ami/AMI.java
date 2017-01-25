@@ -842,8 +842,10 @@ public class AMI
                 // This test requires two threads in the server's thread pool: one will block in sleep() and the other
                 // will process the CloseConnection message.
                 //
+                p.ice_ping();
+                com.zeroc.Ice.Connection con = p.ice_getConnection();
                 CompletableFuture<Void> f = p.sleepAsync(100);
-                p.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefully);
+                con.close(com.zeroc.Ice.ConnectionClose.CloseGracefully);
                 try
                 {
                     f.join();
@@ -865,7 +867,8 @@ public class AMI
                 // despite the fact that there's a pending call to sleep(). The call to sleep() should be
                 // automatically retried and complete successfully.
                 //
-                com.zeroc.Ice.Connection con = p.ice_getConnection();
+                p.ice_ping();
+                con = p.ice_getConnection();
                 Callback cb = new Callback();
                 con.setCloseCallback(c -> cb.called());
                 f = p.sleepAsync(100);
@@ -884,8 +887,10 @@ public class AMI
                 // Local case: start a lengthy operation and then close the connection forcefully on the client side.
                 // There will be no retry and we expect the invocation to fail with ConnectionManuallyClosedException.
                 //
+                p.ice_ping();
+                com.zeroc.Ice.Connection con = p.ice_getConnection();
                 CompletableFuture<Void> f = p.sleepAsync(100);
-                p.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
+                con.close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
                 try
                 {
                     f.join();

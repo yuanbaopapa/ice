@@ -1116,8 +1116,10 @@ def allTests(communicator, collocated):
         # This test requires two threads in the server's thread pool: one will block in sleep() and the other
         # will process the CloseConnection message.
         # 
+        p.ice_ping()
+        con = p.ice_getConnection()
         r = p.begin_sleep(100)
-        p.ice_getConnection().close(Ice.ConnectionClose.CloseGracefully)
+        con.close(Ice.ConnectionClose.CloseGracefully)
         r.waitForCompleted()
         try:
             r.throwLocalException()
@@ -1154,8 +1156,10 @@ def allTests(communicator, collocated):
         # Local case: start a lengthy operation and then close the connection forcefully on the client side.
         # There will be no retry and we expect the invocation to fail with ConnectionManuallyClosedException.
         # 
+        p.ice_ping()
+        con = p.ice_getConnection()
         r = p.begin_sleep(100)
-        p.ice_getConnection().close(Ice.ConnectionClose.CloseForcefully)
+        con.close(Ice.ConnectionClose.CloseForcefully)
         r.waitForCompleted()
         try:
             r.throwLocalException()
